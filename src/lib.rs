@@ -149,9 +149,11 @@ mod tests {
         lst.push(0);
         lst.push(11);
 
+        /*
         for elem in &lst {
             println!("{:?}", elem)
         }
+        */
     }
 
 }
