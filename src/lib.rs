@@ -77,6 +77,30 @@ impl<T> Iterator for ListIntoIter<T> {
     }
 }
 
+struct ListIter<'a, T> {
+    cur: &'a NodePtr<T>
+}
+
+impl<T> List<T> {
+    fn iter(&self) -> ListIter<T> {
+        ListIter { cur: &self.head }
+    }
+}
+
+impl<'a, T> Iterator for ListIter<'a, T> {
+    type Item = &'a T;
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.cur {
+            None => None,
+            Some(node) => {
+                let retval = &(**node).elem;
+                self.cur = &(**node).next;
+                Some(retval)
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -140,6 +164,7 @@ mod tests {
         }
     }
 
+    #[test]
     fn test_iter() {
         use super::{List, Node, Point};
 
@@ -149,11 +174,14 @@ mod tests {
         lst.push(0);
         lst.push(11);
 
-        /*
-        for elem in &lst {
+        for elem in lst.iter().enumerate() {
+            match elem.0 {
+                0 => assert_eq!(elem.1, &11),
+                1 => assert_eq!(elem.1, &0),
+                2 => assert_eq!(elem.1, &-1),
+                _ => panic!("wtf")
+            }
             println!("{:?}", elem)
         }
-        */
     }
-
 }
