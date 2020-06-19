@@ -78,7 +78,7 @@ impl<T> Iterator for ListIntoIter<T> {
 }
 
 struct ListIter<'a, T> {
-    cur: &'a NodePtr<T>
+    cur: &'a NodePtr<T>,
 }
 
 impl<T> List<T> {
@@ -89,15 +89,13 @@ impl<T> List<T> {
 
 impl<'a, T> Iterator for ListIter<'a, T> {
     type Item = &'a T;
+
     fn next(&mut self) -> Option<Self::Item> {
-        match self.cur {
-            None => None,
-            Some(node) => {
-                let retval = &(**node).elem;
-                self.cur = &(**node).next;
-                Some(retval)
-            }
-        }
+        self.cur.as_ref().map(|node| {
+            let retval = &(*node).elem;
+            self.cur = &(*node).next;
+            retval
+        })
     }
 }
 
@@ -179,9 +177,59 @@ mod tests {
                 0 => assert_eq!(elem.1, &11),
                 1 => assert_eq!(elem.1, &0),
                 2 => assert_eq!(elem.1, &-1),
-                _ => panic!("wtf")
+                _ => panic!("wtf"),
             }
             println!("{:?}", elem)
         }
     }
+
+    /*
+
+    #[test]
+    fn test_mut_iter() {
+        use super::{List, Node, Point};
+
+        let mut lst: List<i32> = List::new();
+
+        lst.push(-1);
+        lst.push(0);
+        lst.push(11);
+
+        let mut it = lst.mut_iter();
+        let elem = it.next().unwrap();
+        *elem = *elem + 10;
+        dbg!(elem);
+        for elem in lst.mut_iter() {
+        }
+    }
+    */
+
 }
+
+/*
+struct ListMutIter<'a, T> {
+    cur: &'a mut NodePtr<T>,
+}
+
+impl<T> List<T> {
+    fn mut_iter(&self) -> ListMutIter<T> {
+        ListMutIter {
+            cur: &mut self.head,
+        }
+    }
+}
+
+impl<'a, T> Iterator for ListMutIter<'a, T> {
+    type Item = &'a mut T;
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.cur.take() {
+            None => None,
+            Some(node) => {
+                let mut retval = &mut (**node).elem;
+                //self.cur = &*node.next;
+                Some(retval)
+            }
+        }
+    }
+}
+*/
