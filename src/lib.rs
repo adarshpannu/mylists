@@ -21,24 +21,22 @@ impl<T> List<T> {
     }
 
     fn push(&mut self, elem: T) {
-        let new_node = match std::mem::replace(&mut self.head, None) {
-            None => Node { elem, next: None },
-            Some(prev_head) => Node {
-                elem,
-                next: Some(prev_head),
-            },
+        let new_node = Node {
+            elem,
+            next: self.head.take(),
         };
-        self.head = Some(Box::new(new_node))
+        self.head = Some(Box::new(new_node));
+    }
+
+    fn peek(&self) -> Option<&T> {
+        self.head.as_ref().map(|node| &(*node).elem)
     }
 
     fn pop(&mut self) -> Option<T> {
-        return match std::mem::replace(&mut self.head, None) {
-            None => None,
-            Some(prev_head) => {
-                self.head = prev_head.next;
-                Some(prev_head.elem)
-            }
-        };
+        self.head.take().map(|mut prev_node| {
+            self.head = prev_node.next.take();
+            prev_node.elem
+        })
     }
 
     fn get(&self, ix: usize) -> Option<&T> {
@@ -57,6 +55,27 @@ impl<T> List<T> {
                 }
             }
         }
+    }
+}
+
+impl<T> Drop for List<T> {
+    fn drop(&mut self) {
+        println!("Drop List");
+    }
+
+    /*
+    let cur = self.head;
+    while (cur != null) {
+        cur_next = cur->next;
+        delete cur;
+        cur = cur_next;
+    }
+    */
+}
+
+impl<T> Drop for Node<T> {
+    fn drop(&mut self) {
+        println!("Drop Node");
     }
 }
 
@@ -124,6 +143,9 @@ mod tests {
         lst.push(-1);
         lst.push(0);
         lst.push(11);
+
+        assert_eq!(lst.peek(), Some(&11));
+
         assert_eq!(lst.pop().unwrap(), 11);
         assert_eq!(lst.pop().unwrap(), 0);
         assert_eq!(lst.pop().unwrap(), -1);
@@ -157,8 +179,15 @@ mod tests {
         lst.push(0);
         lst.push(11);
 
+        let mut ix = 0;
         for elem in lst {
-            println!("{:?}", elem)
+            match ix {
+                0 => assert_eq!(elem, 11),
+                1 => assert_eq!(elem, 0),
+                2 => assert_eq!(elem, -1),
+                _ => panic!("wtf"),
+            }
+            ix += 1;
         }
     }
 
@@ -179,57 +208,56 @@ mod tests {
                 2 => assert_eq!(elem.1, &-1),
                 _ => panic!("wtf"),
             }
-            println!("{:?}", elem)
         }
     }
-
-    /*
 
     #[test]
     fn test_mut_iter() {
         use super::{List, Node, Point};
-
         let mut lst: List<i32> = List::new();
-
         lst.push(-1);
-        lst.push(0);
-        lst.push(11);
-
-        let mut it = lst.mut_iter();
-        let elem = it.next().unwrap();
-        *elem = *elem + 10;
-        dbg!(elem);
         for elem in lst.mut_iter() {
+            *elem = *elem + 10;
         }
     }
-    */
-
 }
 
 /*
+struct List<T> {
+    head: NodePtr<T>,
+}
+
+type NodePtr<T> = Option<Box<Node<T>>>;
+
+struct Node<T> {
+    elem: T,
+    next: NodePtr<T>,
+}
+*/
+
 struct ListMutIter<'a, T> {
-    cur: &'a mut NodePtr<T>,
+    cur: &'a NodePtr<T>,
 }
 
 impl<T> List<T> {
-    fn mut_iter(&self) -> ListMutIter<T> {
-        ListMutIter {
-            cur: &mut self.head,
-        }
+    fn mut_iter(&mut self) -> ListMutIter<T> {
+        ListMutIter { cur: &self.head }
     }
 }
 
 impl<'a, T> Iterator for ListMutIter<'a, T> {
     type Item = &'a mut T;
     fn next(&mut self) -> Option<Self::Item> {
-        match self.cur.take() {
+        /*
+        match self.cur {
             None => None,
-            Some(node) => {
-                let mut retval = &mut (**node).elem;
+            Some(mut node) => {
+                let mut retval = &mut *node;
                 //self.cur = &*node.next;
-                Some(retval)
+                Some(&mut retval.elem)
             }
         }
+        */
+        None
     }
 }
-*/
