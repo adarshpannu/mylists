@@ -1,9 +1,10 @@
 #![allow(warnings)]
 use std::cell::RefCell;
+use std::fmt;
 use std::rc::Rc;
 
 #[derive(Debug)]
-struct List<T> {
+struct List<T: fmt::Display> {
     head: NodePtr<T>,
     tail: NodePtr<T>,
 }
@@ -17,7 +18,7 @@ struct Node<T> {
     prev: NodePtr<T>,
 }
 
-impl<T> List<T> {
+impl<T: fmt::Display> List<T> {
     fn new() -> List<T> {
         List {
             head: None,
@@ -60,6 +61,10 @@ impl<T> List<T> {
     }
 
     fn pop_front(&mut self) -> Option<T> {
+        if self.head.is_none() {
+            return None;
+        }
+
         None
     }
 
@@ -67,6 +72,19 @@ impl<T> List<T> {
 
     fn pop_back(&mut self) -> Option<T> {
         None
+    }
+}
+
+impl<T: fmt::Display> fmt::Display for List<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "List: [");
+        let mut node_opt = self.head.as_ref().map(|node| &node.into_inner());
+
+        while let Some(node) = node_opt {
+            write!(f, "{}, ", node.elem);
+            let node_opt = node.next.as_ref().map(|node| &node.into_inner());
+        }
+        Ok(())
     }
 }
 
@@ -82,7 +100,7 @@ mod test {
         list.push_front(1);
         list.push_front(2);
 
-        //dbg!(&list);
+        println!("{}", list);
     }
 
     #[test]
