@@ -1,25 +1,33 @@
 #![allow(warnings)]
+
 use std::cell::RefCell;
-use std::fmt;
 use std::rc::Rc;
 
-#[derive(Debug)]
-struct List<T: fmt::Display> {
+struct List<T> {
     head: NodePtr<T>,
     tail: NodePtr<T>,
 }
 
 type NodePtr<T> = Option<Rc<RefCell<Node<T>>>>;
 
-#[derive(Debug)]
 struct Node<T> {
     elem: T,
     next: NodePtr<T>,
     prev: NodePtr<T>,
 }
 
-impl<T: fmt::Display> List<T> {
-    fn new() -> List<T> {
+impl<T> Node<T> {
+    fn new(elem: T) -> Rc<RefCell<Node<T>>> {
+        Rc::new(RefCell::new(Node {
+            elem,
+            next: None,
+            prev: None,
+        }))
+    }
+}
+
+impl<T> List<T> {
+    fn new() -> Self {
         List {
             head: None,
             tail: None,
@@ -27,81 +35,34 @@ impl<T: fmt::Display> List<T> {
     }
 
     fn push_front(&mut self, elem: T) {
-        if self.head.is_none() && self.tail.is_none() {
-            let new_node = Node {
-                elem,
-                next: None,
-                prev: None,
-            };
-            let new_node = Rc::new(RefCell::new(new_node));
-            self.tail = Some(Rc::clone(&new_node));
-            self.head = Some(new_node);
-        } else {
-            // List.head (A)
-            // List.tail (B) unchanged
-            // New_node.next (C) = old head node
-            // New_node.prev (D) = None
-            // Old_head_node.next (E) unchanged
-            // Old_head_node.prev (F) = new_head_node
-
-            let old_head = self.head.take();
-            let new_node = Node {
-                elem,
-                next: old_head, // (C)
-                prev: None,     // (D)
-            };
-            let new_node = Rc::new(RefCell::new(new_node));
-            new_node.borrow().next.as_ref().map(|old_head| {
-                let mut old_head_node = old_head.borrow_mut();
-                old_head_node.prev = Some(new_node.clone()); // (F)
-            });
-
-            self.head = Some(new_node); // (A)
+        let new_head = Node::new(elem);
+        match self.head.take() {
+            None => {
+                self.tail = Some(new_head.clone());
+                self.head = Some(new_head)
+            }
+            Some(old_head) => {
+                old_head.borrow_mut().prev = Some(new_head.clone());
+                new_head.borrow_mut().next = Some(old_head);
+                self.head = Some(new_head);
+            }
         }
     }
 
     fn pop_front(&mut self) -> Option<T> {
-        if self.head.is_none() {
-            return None;
-        }
-
-        None
-    }
-
-    fn push_back(&mut self, elem: T) {}
-
-    fn pop_back(&mut self) -> Option<T> {
-        None
+        self.head.take().map(|old_head| {
+            self.head = old_head.borrow_mut().next.take().map(|new_head| {
+                new_head.borrow_mut().prev = None;
+                new_head
+            });
+            // WTF?!?
+            Rc::try_unwrap(old_head).ok().unwrap().into_inner().elem
+        })
     }
 }
 
-impl<T: fmt::Display> fmt::Display for List<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "List: [");
-        let mut node_opt = self.head.as_ref().map(|node| &node.into_inner());
-
-        while let Some(node) = node_opt {
-            write!(f, "{}, ", node.elem);
-            let node_opt = node.next.as_ref().map(|node| &node.into_inner());
-        }
-        Ok(())
-    }
-}
-
-#[cfg(test)]
 mod test {
     use super::List;
-
-    #[test]
-    fn mine() {
-        let mut list = List::new();
-
-        // Populate list
-        list.push_front(1);
-        list.push_front(2);
-
-        println!("{}", list);
-    }
 
     #[test]
     fn basics() {
@@ -118,43 +79,5 @@ mod test {
         // Check normal removal
         assert_eq!(list.pop_front(), Some(3));
         assert_eq!(list.pop_front(), Some(2));
-
-        // Push some more just to make sure nothing's corrupted
-        list.push_front(4);
-        list.push_front(5);
-
-        // Check normal removal
-        assert_eq!(list.pop_front(), Some(5));
-        assert_eq!(list.pop_front(), Some(4));
-
-        // Check exhaustion
-        assert_eq!(list.pop_front(), Some(1));
-        assert_eq!(list.pop_front(), None);
-
-        // ---- back -----
-
-        // Check empty list behaves right
-        assert_eq!(list.pop_back(), None);
-
-        // Populate list
-        list.push_back(1);
-        list.push_back(2);
-        list.push_back(3);
-
-        // Check normal removal
-        assert_eq!(list.pop_back(), Some(3));
-        assert_eq!(list.pop_back(), Some(2));
-
-        // Push some more just to make sure nothing's corrupted
-        list.push_back(4);
-        list.push_back(5);
-
-        // Check normal removal
-        assert_eq!(list.pop_back(), Some(5));
-        assert_eq!(list.pop_back(), Some(4));
-
-        // Check exhaustion
-        assert_eq!(list.pop_back(), Some(1));
-        assert_eq!(list.pop_back(), None);
     }
 }
